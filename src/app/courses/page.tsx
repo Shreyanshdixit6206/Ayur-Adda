@@ -11,7 +11,7 @@ import { prisma } from "@/lib/prisma";
 export const dynamic = "force-dynamic"; // Opt out of static rendering
 
 export default async function CoursesPage() {
-  const courses = await prisma.course.findMany({
+  const rawCourses = await prisma.course.findMany({
     select: {
       id: true,
       title: true,
@@ -27,6 +27,10 @@ export default async function CoursesPage() {
       }
     }
   });
+
+  // Prisma returns objects with hidden getters/setters which can crash Next.js RSC
+  const courses: any[] = JSON.parse(JSON.stringify(rawCourses));
+
   return (
     <div className="min-h-screen bg-background pb-20">
       {/* Header Banner */}
