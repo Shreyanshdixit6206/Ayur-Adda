@@ -1,0 +1,354 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// --- NextAuth Models ---
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+  password      String?
+  role          Role      @default(STUDENT)
+  accounts      Account[]
+  sessions      Session[]
+  profile       Profile?
+
+  // Relations
+  enrollments     Enrollment[]
+  progress        Progress[]
+  doubts          Doubt[]
+  doubtReplies    DoubtReply[]
+  payments        Payment[]
+  subscriptions   Subscription[]
+  certificates    Certificate[]
+  notifications   Notification[]
+  auditLogs       AuditLog[]
+  coursesTeaching Course[]       @relation("InstructorCourses")
+  liveSessions    LiveSession[]  @relation("InstructorSessions")
+  notesUploaded   Note[]         @relation("UploaderNotes")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum Role {
+  STUDENT
+  INSTRUCTOR
+  ADMIN
+  MODERATOR
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// --- Platform Models ---
+
+model Profile {
+  id       String  @id @default(cuid())
+  userId   String  @unique
+  bio      String? @db.Text
+  bamsYear Int? // 1, 2, 3
+  college  String?
+  user     User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Course {
+  id          String     @id @default(cuid())
+  title       String
+  slug        String     @unique
+  description String     @db.Text
+  thumbnail   String?
+  bamsYear    Int // 1, 2, 3
+  subject     String
+  type        CourseType @default(RECORDED)
+  price       Float      @default(0)
+
+  instructorId String
+  instructor   User   @relation("InstructorCourses", fields: [instructorId], references: [id])
+
+  modules      Module[]
+  enrollments  Enrollment[]
+  notes        Note[]
+  liveSessions LiveSession[]
+  doubts       Doubt[]
+  payments     Payment[]
+  certificates Certificate[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum CourseType {
+  RECORDED
+  LIVE
+  HYBRID
+}
+
+model Module {
+  id       String    @id @default(cuid())
+  courseId String
+  title    String
+  order    Int
+  course   Course    @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  lectures Lecture[]
+}
+
+model Lecture {
+  id          String     @id @default(cuid())
+  moduleId    String
+  title       String
+  description String?    @db.Text
+  videoUrl    String?
+  duration    Int? // in seconds
+  isPreview   Boolean    @default(false)
+  order       Int
+  module      Module     @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  progress    Progress[]
+  doubts      Doubt[]
+}
+
+model Enrollment {
+  id        String  @id @default(cuid())
+  userId    String
+  courseId  String
+  paymentId String?
+
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  course  Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  payment Payment? @relation(fields: [paymentId], references: [id])
+
+  enrolledAt DateTime @default(now())
+
+  @@unique([userId, courseId])
+}
+
+model Progress {
+  id             String   @id @default(cuid())
+  userId         String
+  lectureId      String
+  watchedSeconds Int      @default(0)
+  completed      Boolean  @default(false)
+  lastWatchedAt  DateTime @default(now())
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lecture Lecture @relation(fields: [lectureId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, lectureId])
+}
+
+model Note {
+  id           String  @id @default(cuid())
+  courseId     String?
+  title        String
+  fileUrl      String
+  subject      String?
+  bamsYear     Int?
+  uploadedById String
+
+  course     Course? @relation(fields: [courseId], references: [id])
+  uploadedBy User    @relation("UploaderNotes", fields: [uploadedById], references: [id])
+
+  createdAt DateTime @default(now())
+}
+
+model Doubt {
+  id        String      @id @default(cuid())
+  userId    String
+  courseId  String
+  lectureId String?
+  title     String
+  body      String      @db.Text
+  status    DoubtStatus @default(OPEN)
+  tags      String[] // Array of strings for tags
+
+  user    User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  course  Course       @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  lecture Lecture?     @relation(fields: [lectureId], references: [id])
+  replies DoubtReply[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum DoubtStatus {
+  OPEN
+  RESOLVED
+}
+
+model DoubtReply {
+  id           String  @id @default(cuid())
+  doubtId      String
+  userId       String?
+  body         String  @db.Text
+  isInstructor Boolean @default(false)
+  isAi         Boolean @default(false)
+
+  doubt Doubt @relation(fields: [doubtId], references: [id], onDelete: Cascade)
+  user  User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+}
+
+model LiveSession {
+  id           String        @id @default(cuid())
+  title        String
+  courseId     String
+  instructorId String
+  scheduledAt  DateTime
+  joinUrl      String?
+  status       SessionStatus @default(SCHEDULED)
+
+  course     Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  instructor User   @relation("InstructorSessions", fields: [instructorId], references: [id])
+
+  createdAt DateTime @default(now())
+}
+
+enum SessionStatus {
+  SCHEDULED
+  LIVE
+  COMPLETED
+  CANCELLED
+}
+
+model Payment {
+  id              String        @id @default(cuid())
+  userId          String
+  courseId        String?
+  razorpayOrderId String?
+  amount          Float
+  status          PaymentStatus @default(PENDING)
+  invoiceUrl      String?
+
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  course      Course?      @relation(fields: [courseId], references: [id])
+  enrollments Enrollment[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  REFUNDED
+}
+
+model Subscription {
+  id       String    @id @default(cuid())
+  userId   String
+  plan     SubPlan
+  startsAt DateTime
+  endsAt   DateTime
+  status   SubStatus @default(ACTIVE)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+}
+
+enum SubPlan {
+  MONTHLY
+  SEMESTER
+  ANNUAL
+  BAMS_COMPLETE
+}
+
+enum SubStatus {
+  ACTIVE
+  EXPIRED
+  CANCELLED
+}
+
+model Coupon {
+  id           String       @id @default(cuid())
+  code         String       @unique
+  discountType DiscountType
+  value        Float
+  usageLimit   Int?
+  usedCount    Int          @default(0)
+  expiresAt    DateTime?
+
+  createdAt DateTime @default(now())
+}
+
+enum DiscountType {
+  FLAT
+  PERCENTAGE
+}
+
+model Certificate {
+  id             String   @id @default(cuid())
+  userId         String
+  courseId       String
+  issuedAt       DateTime @default(now())
+  certificateUrl String?
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, courseId])
+}
+
+model Notification {
+  id      String  @id @default(cuid())
+  userId  String
+  type    String
+  message String  @db.Text
+  read    Boolean @default(false)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+}
+
+model AuditLog {
+  id        String  @id @default(cuid())
+  userId    String?
+  action    String
+  entity    String
+  entityId  String?
+  ipAddress String?
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+}
