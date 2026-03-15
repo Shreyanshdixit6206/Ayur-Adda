@@ -12,8 +12,19 @@ export const dynamic = "force-dynamic"; // Opt out of static rendering
 
 export default async function CoursesPage() {
   const courses = await prisma.course.findMany({
-    include: {
-      instructor: true
+    select: {
+      id: true,
+      title: true,
+      description: true,
+      subject: true,
+      bamsYear: true,
+      slug: true,
+      thumbnail: true,
+      instructor: {
+        select: {
+          name: true
+        }
+      }
     }
   });
   return (
