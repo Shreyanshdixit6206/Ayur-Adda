@@ -95,8 +95,8 @@ export default async function CoursesPage() {
           {dbError && (
              <div className="bg-red-500/10 border border-red-500/50 text-red-600 p-4 rounded-lg mb-6 flex flex-col gap-2">
                <strong className="font-bold flex items-center gap-2"><Leaf className="w-5 h-5"/> Database Connection Error</strong>
-               <p className="text-sm">Vercel could not connect to your Supabase database because it requires an IPv4 connection string (Pooler URL). The direct IPv6 connection works locally but fails on Vercel Node.</p>
-               <p className="text-sm font-medium mt-1">Fix: Go to Supabase Dashboard &gt; Database &gt; Connection Pooler and copy your IPv4 string (port 6543). Paste this into Vercel Environment Variables as <code className="bg-red-500/20 px-1 rounded">DATABASE_URL</code> and redeploy.</p>
+               <p className="text-sm">The application failed to connect to the database. This usually means the Vercel Environment Variables are incorrect or missing.</p>
+               <p className="text-sm font-medium mt-1">Fix: Go to your <b>Vercel Dashboard</b> &gt; Settings &gt; Environment Variables. Ensure <code className="bg-red-500/20 px-1 rounded">DATABASE_URL</code> is exactly set to your Neon Postgres Connection string, then hit <b>Redeploy</b>.</p>
              </div>
           )}
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
