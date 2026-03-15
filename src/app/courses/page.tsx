@@ -8,6 +8,8 @@ import Image from "next/image";
 
 import { prisma } from "@/lib/prisma";
 
+export const dynamic = "force-dynamic"; // Opt out of static rendering
+
 export default async function CoursesPage() {
   const courses = await prisma.course.findMany({
     include: {
