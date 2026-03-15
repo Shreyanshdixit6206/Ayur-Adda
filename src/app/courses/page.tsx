@@ -11,22 +11,30 @@ import { prisma } from "@/lib/prisma";
 export const dynamic = "force-dynamic"; // Opt out of static rendering
 
 export default async function CoursesPage() {
-  const rawCourses = await prisma.course.findMany({
-    select: {
-      id: true,
-      title: true,
-      description: true,
-      subject: true,
-      bamsYear: true,
-      slug: true,
-      thumbnail: true,
-      instructor: {
-        select: {
-          name: true
+  let rawCourses: any[] = [];
+  let dbError = false;
+
+  try {
+    rawCourses = await prisma.course.findMany({
+      select: {
+        id: true,
+        title: true,
+        description: true,
+        subject: true,
+        bamsYear: true,
+        slug: true,
+        thumbnail: true,
+        instructor: {
+          select: {
+            name: true
+          }
         }
       }
-    }
-  });
+    });
+  } catch (error) {
+    console.error("Database connection failed:", error);
+    dbError = true;
+  }
 
   // Prisma returns objects with hidden getters/setters which can crash Next.js RSC
   const courses: any[] = JSON.parse(JSON.stringify(rawCourses));
@@ -83,7 +91,15 @@ export default async function CoursesPage() {
         </aside>
 
         {/* Course Grid */}
-        <div className="flex-1 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+        <div className="flex-1">
+          {dbError && (
+             <div className="bg-red-500/10 border border-red-500/50 text-red-600 p-4 rounded-lg mb-6 flex flex-col gap-2">
+               <strong className="font-bold flex items-center gap-2"><Leaf className="w-5 h-5"/> Database Connection Error</strong>
+               <p className="text-sm">Vercel could not connect to your Supabase database because it requires an IPv4 connection string (Pooler URL). The direct IPv6 connection works locally but fails on Vercel Node.</p>
+               <p className="text-sm font-medium mt-1">Fix: Go to Supabase Dashboard &gt; Database &gt; Connection Pooler and copy your IPv4 string (port 6543). Paste this into Vercel Environment Variables as <code className="bg-red-500/20 px-1 rounded">DATABASE_URL</code> and redeploy.</p>
+             </div>
+          )}
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
           {courses.map((course) => (
             <Link href={`/courses/${course.slug}`} key={course.id} className="group cursor-pointer">
               <Card className="h-full bg-card border border-border shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden">
@@ -122,6 +138,7 @@ export default async function CoursesPage() {
           ))}
         </div>
 
+        </div>
       </div>
     </div>
   );
