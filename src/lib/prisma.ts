@@ -1,13 +1,17 @@
 import { PrismaClient } from "@prisma/client";
-import { Pool } from "pg";
-import { PrismaPg } from "@prisma/adapter-pg";
+import { Pool, neonConfig } from "@neondatabase/serverless";
+import { PrismaNeon } from "@prisma/adapter-neon";
+import ws from "ws";
 
 const globalForPrisma = globalThis as unknown as { prisma: PrismaClient };
 
-const connectionString = `${process.env.DATABASE_URL}`;
+// Configure neon to use WebSockets in Node.js environments (required for Prisma)
+neonConfig.webSocketConstructor = ws;
 
+const connectionString = `${process.env.DATABASE_URL}`;
 const pool = new Pool({ connectionString });
-const adapter = new PrismaPg(pool);
+// @ts-ignore
+const adapter = new PrismaNeon(pool);
 
 export const prisma =
   globalForPrisma.prisma ||
